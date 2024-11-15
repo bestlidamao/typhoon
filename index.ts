@@ -66,6 +66,9 @@ program
     return checksumAddress(value as `0x${string}`);
   })
   .addOption(
+    new Option("--chain <name>", "Claim Chain").makeOptionMandatory(true),
+  )
+  .addOption(
     new Option(
       "-p, --private-key <RAW_PRIVATE_KEY>",
       "Use the provided private key.",

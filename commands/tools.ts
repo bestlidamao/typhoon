@@ -1,9 +1,12 @@
 import {
+  createPublicClient,
   createWalletClient,
   formatEther,
   http,
   parseEther,
   parseEventLogs,
+  parseGwei,
+  toBytes,
   type Account,
   type Chain,
   type WalletClient,
@@ -27,6 +30,9 @@ import {
   LitActionResource,
   LitPKPResource,
 } from "@lit-protocol/auth-helpers";
+import { PKPPremissionsContract } from "../abi/PKPPermissions";
+import { TransactionEnvelopeEip1559 } from "ox";
+import { fromHex } from "ox/BlsPoint";
 
 type SupportChain =
   | "ethereum"
@@ -63,6 +69,7 @@ export class VerifyCommnad {
   readonly txHash: `0x${string}`;
   readonly receiverAddress: `0x${string}`;
   readonly privateKey: `0x${string}`;
+  readonly chain: Chain;
 
   constructor(
     pkpTokenId: string,
@@ -74,6 +81,7 @@ export class VerifyCommnad {
     this.txHash = txHash;
     this.receiverAddress = receiverAddress;
     this.privateKey = options.privateKey;
+    this.chain = getSourceChain(options.chain);
   }
 
   signTxHash = () => {
@@ -87,7 +95,7 @@ export class VerifyCommnad {
   claim = async () => {
     const litNodeClient = new LitNodeClient({
       litNetwork: LitNetwork.DatilDev,
-      debug: true,
+      debug: false,
     });
     await litNodeClient.connect();
 
@@ -99,56 +107,81 @@ export class VerifyCommnad {
     console.log(`PKP CID: ${pkpCid}`);
     console.log(`PKP Signature: ${signature}`);
 
-    const account = privateKeyToAccount(this.privateKey);
-    const sessionSignatures = await litNodeClient.getSessionSigs({
+    const sessionSigs = await litNodeClient.getLitActionSessionSigs({
+      pkpPublicKey: pkpPublicKey,
       chain: "ethereum",
       expiration: new Date(Date.now() + 1000 * 60 * 10).toISOString(), // 10 minutes
       resourceAbilityRequests: [
+        {
+          resource: new LitPKPResource("*"),
+          ability: LitAbility.PKPSigning,
+        },
         {
           resource: new LitActionResource("*"),
           ability: LitAbility.LitActionExecution,
         },
       ],
-      authNeededCallback: async ({
-        uri,
-        expiration,
-        resourceAbilityRequests,
-      }) => {
-        const toSign = await createSiweMessage({
-          uri,
-          expiration,
-          resources: resourceAbilityRequests,
-          walletAddress: account.address,
-          nonce: await litNodeClient.getLatestBlockhash(),
-          litNodeClient,
-        });
-
-        const signature = await account.signMessage({ message: toSign });
-        return {
-          sig: signature,
-          derivedVia: "web3.eth.personal.sign",
-          signedMessage: toSign,
-          address: account.address,
-          algo: "ed25519",
-        };
-      },
-    });
-
-    const litReturn = await litNodeClient.executeJs({
-      ipfsId: pkpCid,
-      sessionSigs: sessionSignatures,
+      litActionIpfsId: pkpCid,
       jsParams: {
-        pkpPublicKey:
-          "044ada0d2cf4d4c56afcd71736d4da1c0678378b3e5fb40c7495af5203285252fe2eb938c8e524f3027c30140a444ed3cc581d280b71eecb943c4b8615c6b6737e",
-        payload:
-          "0xd377db433def64e206aa655b39edbfad94c270c6c31ea9560c1d10493ebfe0e0",
         txHash: this.txHash,
         sigature: signature,
       },
     });
 
-    console.log(litReturn);
+    const account = privateKeyToAccount(this.privateKey);
 
+    const client = createPublicClient({
+      chain: this.chain,
+      transport: http(),
+    });
+
+    const walletClient = createWalletClient({
+      chain: this.chain,
+      transport: http(),
+    });
+
+    const pkpBalance = await client.getBalance({
+      address: publicKeyToAddress(pkpPublicKey),
+    });
+
+    const request = await walletClient.prepareTransactionRequest({
+      account: publicKeyToAddress(pkpPublicKey),
+      to: this.receiverAddress,
+      value: parseGwei("1000"),
+    });
+    console.log(publicKeyToAddress(pkpPublicKey));
+    const envelope = TransactionEnvelopeEip1559.from({
+      chainId: this.chain.id,
+      maxFeePerGas: request.maxFeePerGas,
+      maxPriorityFeePerGas: request.maxPriorityFeePerGas,
+      gas: request.gas,
+      nonce: BigInt(request.nonce),
+      to: request.to,
+      value: request.value,
+    });
+
+    const signingResult = await litNodeClient.pkpSign({
+      pubKey: pkpPublicKey,
+      sessionSigs,
+      toSign: toBytes(TransactionEnvelopeEip1559.getSignPayload(envelope)),
+    });
+
+    const serializedTransaction = TransactionEnvelopeEip1559.serialize(
+      envelope,
+      {
+        signature: {
+          r: BigInt("0x" + signingResult.r),
+          s: BigInt("0x" + signingResult.s),
+          yParity: signingResult.recid,
+        },
+      },
+    );
+
+    const hash = await walletClient.sendRawTransaction({
+      serializedTransaction,
+    });
+
+    console.log(`Claim Tx Hash: ${hash}`);
     await litNodeClient.disconnect();
   };
 }
@@ -214,10 +247,8 @@ else {
       response: "Confirm Nonce Error"
     });
   if (ethers.utils.verifyMessage(txHash, sigature) === tx.from)
-    LitActions.signEcdsa({
-      publicKey: pkpPublicKey,
-      toSign: ethers.utils.arrayify(payload),
-      sigName: "tx",
+    LitActions.setResponse({
+      response: "true"
     });
   else
     LitActions.setResponse({
@@ -290,19 +321,20 @@ else {
     const code = this.generateLitAction(confirmNonce);
 
     const ipfsCID = await this.uploadAndGetIPFSCid(confirmNonce, code);
-    const { request, result } = await client.simulateContract({
+    const { request: requestMint, result } = await client.simulateContract({
       ...PKPNFTContract,
       account,
-      functionName: "mintGrantAndBurnNext",
-      args: [2n, this.getBytesFromMultihash(ipfsCID)],
+      functionName: "mintNext",
+      args: [2n],
+      // args: [2n, this.getBytesFromMultihash(ipfsCID)],
       value: mintCost,
     });
 
-    const txHash = await litWalletClient.writeContract(request);
-    console.log(`Mint PKP Tx: ${txHash}`);
+    const mintTxHash = await litWalletClient.writeContract(requestMint);
+    console.log(`Mint PKP Tx: ${mintTxHash}`);
 
     const receipt = await getTransactionReceipt(client, {
-      hash: txHash,
+      hash: mintTxHash,
     });
 
     const logs = parseEventLogs({
@@ -315,6 +347,17 @@ else {
     console.log(`PKP Token Id: ${logs[0].args.tokenId}`);
     console.log(`PKP Ethereum Address: ${pkpEthereumAddress}`);
     console.log(`Confirm Nonce: ${confirmNonce}`);
+
+    const { request: requestLitAction } = await client.simulateContract({
+      account: account,
+      ...PKPPremissionsContract,
+      functionName: "addPermittedAction",
+      args: [logs[0].args.tokenId, this.getBytesFromMultihash(ipfsCID), [1n]],
+    });
+
+    const litActionTxHash =
+      await litWalletClient.writeContract(requestLitAction);
+    console.log(`PKP Add LitAction: ${litActionTxHash}`);
 
     const walletClient = createWalletClient({
       account,
