@@ -74,8 +74,16 @@ program
       "Use the provided private key.",
     ).env("VERIFY_PRIVATE_KEY"),
   )
+  .option("--debug", "Display Lit Protocol Debug Logs")
   .action(async (tokenId, txHash, receiver, options) => {
-    const command = new VerifyCommnad(tokenId, txHash, receiver, options);
+    const debugFlag = options.debug ? true : false;
+    const command = new VerifyCommnad(
+      tokenId,
+      txHash,
+      receiver,
+      debugFlag,
+      options,
+    );
     await command.claim();
   });
 

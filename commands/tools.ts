@@ -70,17 +70,20 @@ export class VerifyCommnad {
   readonly receiverAddress: `0x${string}`;
   readonly privateKey: `0x${string}`;
   readonly chain: Chain;
+  readonly debugFlag: boolean;
 
   constructor(
     pkpTokenId: string,
     txHash: `0x${string}`,
     receiverAddress: `0x${string}`,
+    debugFlag: boolean,
     options: any,
   ) {
     this.pkpTokenId = BigInt(pkpTokenId);
     this.txHash = txHash;
     this.receiverAddress = receiverAddress;
     this.privateKey = options.privateKey;
+    this.debugFlag = debugFlag;
     this.chain = getSourceChain(options.chain);
   }
 
@@ -95,17 +98,17 @@ export class VerifyCommnad {
   claim = async () => {
     const litNodeClient = new LitNodeClient({
       litNetwork: LitNetwork.DatilDev,
-      debug: false,
+      debug: this.debugFlag,
     });
     await litNodeClient.connect();
 
     const pkpPublicKey = await getPKPPublicKey(this.pkpTokenId);
     const pkpCid = await getPKPCid(this.pkpTokenId);
     const signature = await this.signTxHash();
-    console.log(`PKP PublicKey: ${pkpPublicKey}`);
-    console.log(`PKP Tx: ${this.txHash}`);
-    console.log(`PKP CID: ${pkpCid}`);
-    console.log(`PKP Signature: ${signature}`);
+    // console.log(`PKP PublicKey: ${pkpPublicKey}`);
+    // console.log(`PKP Tx: ${this.txHash}`);
+    // console.log(`PKP CID: ${pkpCid}`);
+    // console.log(`PKP Signature: ${signature}`);
 
     const sessionSigs = await litNodeClient.getLitActionSessionSigs({
       pkpPublicKey: pkpPublicKey,
@@ -147,7 +150,7 @@ export class VerifyCommnad {
     const request = await walletClient.prepareTransactionRequest({
       account: publicKeyToAddress(pkpPublicKey),
       to: this.receiverAddress,
-      value: parseGwei("1000"),
+      value: pkpBalance,
     });
     console.log(publicKeyToAddress(pkpPublicKey));
     const envelope = TransactionEnvelopeEip1559.from({
