@@ -207,6 +207,7 @@ else {
     const pkpEthereumAddress = publicKeyToAddress(logs[0].args.pubkey);
     console.log(`PKP Token Id: ${logs[0].args.tokenId}`);
     console.log(`PKP Ethereum Address: ${pkpEthereumAddress}`);
+    console.log(`Confirm Nonce: ${confirmNonce}`);
 
     const walletClient = createWalletClient({
       account,
