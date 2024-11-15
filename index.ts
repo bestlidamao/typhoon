@@ -1,6 +1,6 @@
 import { Command, Option, Argument } from "commander";
 import { checksumAddress } from "viem";
-import { CreateCommand } from "./commands/tools";
+import { CreateCommand, VerifyCommnad } from "./commands/tools";
 
 const program = new Command();
 
@@ -55,6 +55,25 @@ program
   .action(async (source, destain, receiver, options) => {
     const command = new CreateCommand(source, destain, receiver, options);
     await command.createPKP();
+  });
+
+program
+  .command("claim")
+  .description("Verify and claim")
+  .argument("<PKP Token Id>", "order id")
+  .argument("<hex>", "transcation tx")
+  .argument("<receiver>", "Receiver Address", (value) => {
+    return checksumAddress(value as `0x${string}`);
+  })
+  .addOption(
+    new Option(
+      "-p, --private-key <RAW_PRIVATE_KEY>",
+      "Use the provided private key.",
+    ).env("VERIFY_PRIVATE_KEY"),
+  )
+  .action(async (tokenId, txHash, receiver, options) => {
+    const command = new VerifyCommnad(tokenId, txHash, receiver, options);
+    await command.claim();
   });
 
 program.parse();

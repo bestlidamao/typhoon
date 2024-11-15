@@ -16,7 +16,17 @@ import bs58 from "bs58";
 import { getTransactionReceipt } from "viem/actions";
 import { PubKeyRouterABI } from "../abi/PubKeyRouter";
 import { arbitrumSepolia, base, mainnet, optimism, sepolia } from "viem/chains";
-import type { SuperProperty } from "typescript";
+import { LitNodeClient } from "@lit-protocol/lit-node-client";
+import { LitNetwork } from "@lit-protocol/constants";
+import { getPKPCid, getPKPPublicKey } from "./util";
+import {
+  createSiweMessage,
+  // createSiweMessageWithRecaps,
+  generateAuthSig,
+  LitAbility,
+  LitActionResource,
+  LitPKPResource,
+} from "@lit-protocol/auth-helpers";
 
 type SupportChain =
   | "ethereum"
@@ -42,11 +52,106 @@ export const getSourceChain = (chain: SupportChain) => {
       break;
     default:
       supportChain = sepolia;
-    // break;
+      break;
   }
 
   return supportChain;
 };
+
+export class VerifyCommnad {
+  readonly pkpTokenId: bigint;
+  readonly txHash: `0x${string}`;
+  readonly receiverAddress: `0x${string}`;
+  readonly privateKey: `0x${string}`;
+
+  constructor(
+    pkpTokenId: string,
+    txHash: `0x${string}`,
+    receiverAddress: `0x${string}`,
+    options: any,
+  ) {
+    this.pkpTokenId = BigInt(pkpTokenId);
+    this.txHash = txHash;
+    this.receiverAddress = receiverAddress;
+    this.privateKey = options.privateKey;
+  }
+
+  signTxHash = () => {
+    const signature = privateKeyToAccount(this.privateKey).signMessage({
+      message: this.txHash,
+    });
+
+    return signature;
+  };
+
+  claim = async () => {
+    const litNodeClient = new LitNodeClient({
+      litNetwork: LitNetwork.DatilDev,
+      debug: true,
+    });
+    await litNodeClient.connect();
+
+    const pkpPublicKey = await getPKPPublicKey(this.pkpTokenId);
+    const pkpCid = await getPKPCid(this.pkpTokenId);
+    const signature = await this.signTxHash();
+    console.log(`PKP PublicKey: ${pkpPublicKey}`);
+    console.log(`PKP Tx: ${this.txHash}`);
+    console.log(`PKP CID: ${pkpCid}`);
+    console.log(`PKP Signature: ${signature}`);
+
+    const account = privateKeyToAccount(this.privateKey);
+    const sessionSignatures = await litNodeClient.getSessionSigs({
+      chain: "ethereum",
+      expiration: new Date(Date.now() + 1000 * 60 * 10).toISOString(), // 10 minutes
+      resourceAbilityRequests: [
+        {
+          resource: new LitActionResource("*"),
+          ability: LitAbility.LitActionExecution,
+        },
+      ],
+      authNeededCallback: async ({
+        uri,
+        expiration,
+        resourceAbilityRequests,
+      }) => {
+        const toSign = await createSiweMessage({
+          uri,
+          expiration,
+          resources: resourceAbilityRequests,
+          walletAddress: account.address,
+          nonce: await litNodeClient.getLatestBlockhash(),
+          litNodeClient,
+        });
+
+        const signature = await account.signMessage({ message: toSign });
+        return {
+          sig: signature,
+          derivedVia: "web3.eth.personal.sign",
+          signedMessage: toSign,
+          address: account.address,
+          algo: "ed25519",
+        };
+      },
+    });
+
+    const litReturn = await litNodeClient.executeJs({
+      ipfsId: pkpCid,
+      sessionSigs: sessionSignatures,
+      jsParams: {
+        pkpPublicKey:
+          "044ada0d2cf4d4c56afcd71736d4da1c0678378b3e5fb40c7495af5203285252fe2eb938c8e524f3027c30140a444ed3cc581d280b71eecb943c4b8615c6b6737e",
+        payload:
+          "0xd377db433def64e206aa655b39edbfad94c270c6c31ea9560c1d10493ebfe0e0",
+        txHash: this.txHash,
+        sigature: signature,
+      },
+    });
+
+    console.log(litReturn);
+
+    await litNodeClient.disconnect();
+  };
+}
 
 export class CreateCommand {
   readonly source: string;
@@ -86,13 +191,13 @@ if ((new Date()).getTime() - openDate > 432000000)
     });
 else {
   const txReceipt = await provider.getTransactionReceipt(txHash), tx = await provider.getTransaction(txHash);
-  if (txReceipt.confirmations < 500) {
+  if (txReceipt.confirmations < 50) {
     LitActions.setResponse({
       response: "BlockNumber Close Err"
     });
     return;
   }
-  if (txReceipt.to !== "${this.destain}") {
+  if (txReceipt.to !== "${this.receiver}") {
     LitActions.setResponse({
       response: "Receiver Address Err"
     });
@@ -109,8 +214,10 @@ else {
       response: "Confirm Nonce Error"
     });
   if (ethers.utils.verifyMessage(txHash, sigature) === tx.from)
-    LitActions.setResponse({
-      response: "true"
+    LitActions.signEcdsa({
+      publicKey: pkpPublicKey,
+      toSign: ethers.utils.arrayify(payload),
+      sigName: "tx",
     });
   else
     LitActions.setResponse({

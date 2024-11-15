@@ -9,6 +9,8 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
+    "@lit-protocol/constants": "^6.11.0",
+    "@lit-protocol/lit-node-client": "^6.11.0",
     "bs58": "^6.0.0",
     "commander": "^12.1.0",
     "lite-bridge": ".",
