@@ -1,4 +1,13 @@
-import { createWalletClient, formatEther, http, parseEventLogs } from "viem";
+import {
+  createWalletClient,
+  formatEther,
+  http,
+  parseEther,
+  parseEventLogs,
+  type Account,
+  type Chain,
+  type WalletClient,
+} from "viem";
 import { privateKeyToAccount, publicKeyToAddress } from "viem/accounts";
 import { generateSiweNonce } from "viem/siwe";
 import { client, datilDev } from "../config";
@@ -6,6 +15,38 @@ import { PKPNFTContract } from "../abi/PKPNFT";
 import bs58 from "bs58";
 import { getTransactionReceipt } from "viem/actions";
 import { PubKeyRouterABI } from "../abi/PubKeyRouter";
+import { arbitrumSepolia, base, mainnet, optimism, sepolia } from "viem/chains";
+import type { SuperProperty } from "typescript";
+
+type SupportChain =
+  | "ethereum"
+  | "base"
+  | "optimism"
+  | "sepolia"
+  | "arbitrumSepolia";
+
+export const getSourceChain = (chain: SupportChain) => {
+  let supportChain: Chain;
+  switch (chain) {
+    case "base":
+      supportChain = base;
+      break;
+    case "optimism":
+      supportChain = optimism;
+      break;
+    case "ethereum":
+      supportChain = mainnet;
+      break;
+    case "arbitrumSepolia":
+      supportChain = arbitrumSepolia;
+      break;
+    default:
+      supportChain = sepolia;
+    // break;
+  }
+
+  return supportChain;
+};
 
 export class CreateCommand {
   readonly source: string;
@@ -33,7 +74,7 @@ export class CreateCommand {
   generateLitAction = (confirmNonce: string) => {
     const openDate = new Date().toISOString();
     const code = `(async () => {
-const openDate = Date.parse("${openDate}"), receiveMinAmount = ethers.utils.parseEther("${this.value}"), rpcUrl = await LitActions.getRpcUrl({ chain: "${destain}" }), provider = new ethers.providers.JsonRpcProvider(rpcUrl);
+const openDate = Date.parse("${openDate}"), receiveMinAmount = ethers.utils.parseEther("${this.value}"), rpcUrl = await LitActions.getRpcUrl({ chain: "${this.destain}" }), provider = new ethers.providers.JsonRpcProvider(rpcUrl);
 if ((new Date()).getTime() - openDate > 432000000)
   if (ethers.utils.verifyMessage(nonce, sigature) === "${this.source}")
     LitActions.setResponse({
@@ -132,7 +173,6 @@ else {
       chain: datilDev,
       transport: http(),
     });
-    // const sourceWalletClient = createSourceWalletClient(soureChain, account);
 
     const mintCost = await client.readContract({
       ...PKPNFTContract,
@@ -164,9 +204,22 @@ else {
       eventName: "PubkeyRoutingDataSet",
     });
 
+    const pkpEthereumAddress = publicKeyToAddress(logs[0].args.pubkey);
     console.log(`PKP Token Id: ${logs[0].args.tokenId}`);
-    console.log(
-      `PKP Ethereum Address: ${publicKeyToAddress(logs[0].args.pubkey)}`,
-    );
+    console.log(`PKP Ethereum Address: ${pkpEthereumAddress}`);
+
+    const walletClient = createWalletClient({
+      account,
+      chain: getSourceChain(this.source as SupportChain),
+      transport: http(),
+    });
+
+    const depositTx = await walletClient.sendTransaction({
+      account,
+      to: pkpEthereumAddress,
+      value: parseEther(this.value),
+    });
+
+    console.log(`PKP Deposit Tx: ${depositTx}`);
   };
 }

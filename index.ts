@@ -1,5 +1,6 @@
 import { Command, Option, Argument } from "commander";
 import { checksumAddress } from "viem";
+import { CreateCommand } from "./commands/tools";
 
 const program = new Command();
 
@@ -16,6 +17,8 @@ program
       "base",
       "ethereum",
       "optimism",
+      "sepolia",
+      "arbitrumSepolia",
     ]),
   )
   .addArgument(
@@ -23,6 +26,8 @@ program
       "base",
       "ethereum",
       "optimism",
+      "sepolia",
+      "arbitrumSepolia",
     ]),
   )
   .addArgument(
@@ -48,7 +53,8 @@ program
     new Option("--pinata-jwt <JWT_TOKEN>", "Pinata Cloud JWT Token").env("JWT"),
   )
   .action(async (source, destain, receiver, options) => {
-    console.log(options.pinataJwt);
+    const command = new CreateCommand(source, destain, receiver, options);
+    await command.createPKP();
   });
 
 program.parse();
