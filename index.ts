@@ -45,10 +45,10 @@ program
     ).env("PRIVATE_KEY"),
   )
   .addOption(
-    new Option("-d, --database <FILE_PATH>", "DataBase File Path").default(
-      "db.sqilt",
-    ),
+    new Option("--pinata-jwt <JWT_TOKEN>", "Pinata Cloud JWT Token").env("JWT"),
   )
-  .action(async (source, destain, receiver, options) => {});
+  .action(async (source, destain, receiver, options) => {
+    console.log(options.pinataJwt);
+  });
 
 program.parse();

@@ -9,7 +9,9 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
+    "bs58": "^6.0.0",
     "commander": "^12.1.0",
+    "lite-bridge": ".",
     "viem": "^2.21.45"
   }
 }
