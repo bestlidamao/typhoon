@@ -110,6 +110,7 @@ export class VerifyCommnad {
       this.privateKey as `0x${string}`,
       this.txHash as `0x${string}`,
     );
+
     // console.log(`PKP PublicKey: ${pkpPublicKey}`);
     // console.log(`PKP Tx: ${this.txHash}`);
     // console.log(`PKP CID: ${pkpCid}`);
@@ -136,8 +137,6 @@ export class VerifyCommnad {
       },
     });
 
-    const account = privateKeyToAccount(this.privateKey);
-
     const client = createPublicClient({
       chain: this.chain,
       transport: http(),
@@ -155,9 +154,10 @@ export class VerifyCommnad {
     const request = await walletClient.prepareTransactionRequest({
       account: publicKeyToAddress(pkpPublicKey),
       to: this.receiverAddress,
-      value: pkpBalance,
+      // value: pkpBalance - parseGwei("100"),
+      value: parseEther("0.00001"),
     });
-    console.log(publicKeyToAddress(pkpPublicKey));
+
     const envelope = TransactionEnvelopeEip1559.from({
       chainId: this.chain.id,
       maxFeePerGas: request.maxFeePerGas,
