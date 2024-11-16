@@ -2,7 +2,8 @@ import { Command, Option, Argument } from "commander";
 import { checksumAddress } from "viem";
 import {
   CreateCommand,
-  TEECreateCommnad,
+  TEECreateCommand,
+  TEEVerifyCommand,
   VerifyCommnad,
 } from "./commands/tools";
 
@@ -107,7 +108,7 @@ program
     ),
   )
   .action(async (source, destain, receiver, options) => {
-    const command = new TEECreateCommnad(source, destain, receiver, options);
+    const command = new TEECreateCommand(source, destain, receiver, options);
     await command.createOrder();
   });
 
@@ -138,6 +139,33 @@ program
       debugFlag,
       options,
     );
+    await command.claim();
+  });
+
+program
+  .command("tclaim")
+  .description("Verify and claim TEE Order")
+  .argument("<Order Nonce>", "order id")
+  .argument("<hex>", "transcation tx")
+  .argument("<receiver>", "Receiver Address", (value) => {
+    return checksumAddress(value as `0x${string}`);
+  })
+  .addOption(
+    new Option("--chain <name>", "Claim Chain").makeOptionMandatory(true),
+  )
+  .addOption(
+    new Option(
+      "-p, --private-key <RAW_PRIVATE_KEY>",
+      "Use the provided private key.",
+    ).env("VERIFY_PRIVATE_KEY"),
+  )
+  .addOption(
+    new Option("--endpoint <string>", "TEE Birdge Endpoint").default(
+      "http://localhost:3000",
+    ),
+  )
+  .action(async (nonce, txHash, receiver, options) => {
+    const command = new TEEVerifyCommand(nonce, txHash, receiver, options);
     await command.claim();
   });
 

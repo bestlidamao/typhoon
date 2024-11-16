@@ -66,6 +66,14 @@ export const getSourceChain = (chain: SupportChain) => {
   return supportChain;
 };
 
+const signTxHash = (privateKey: `0x${string}`, txHash: `0x${string}`) => {
+  const signature = privateKeyToAccount(privateKey).signMessage({
+    message: txHash,
+  });
+
+  return signature;
+};
+
 export class VerifyCommnad {
   readonly pkpTokenId: bigint;
   readonly txHash: `0x${string}`;
@@ -89,14 +97,6 @@ export class VerifyCommnad {
     this.chain = getSourceChain(options.chain);
   }
 
-  signTxHash = () => {
-    const signature = privateKeyToAccount(this.privateKey).signMessage({
-      message: this.txHash,
-    });
-
-    return signature;
-  };
-
   claim = async () => {
     const litNodeClient = new LitNodeClient({
       litNetwork: LitNetwork.DatilDev,
@@ -106,7 +106,10 @@ export class VerifyCommnad {
 
     const pkpPublicKey = await getPKPPublicKey(this.pkpTokenId);
     const pkpCid = await getPKPCid(this.pkpTokenId);
-    const signature = await this.signTxHash();
+    const signature = await signTxHash(
+      this.privateKey as `0x${string}`,
+      this.txHash as `0x${string}`,
+    );
     // console.log(`PKP PublicKey: ${pkpPublicKey}`);
     // console.log(`PKP Tx: ${this.txHash}`);
     // console.log(`PKP CID: ${pkpCid}`);
@@ -191,7 +194,56 @@ export class VerifyCommnad {
   };
 }
 
-export class TEECreateCommnad {
+export class TEEVerifyCommand {
+  readonly nonce: string;
+  readonly txHash: `0x${string}`;
+  readonly receiverAddress: `0x${string}`;
+  readonly privateKey: `0x${string}`;
+  readonly chain: Chain;
+  readonly endpoint: string;
+
+  constructor(
+    nonce: string,
+    txHash: `0x${string}`,
+    receiverAddress: `0x${string}`,
+    options: any,
+  ) {
+    this.nonce = nonce;
+    this.txHash = txHash;
+    this.receiverAddress = receiverAddress;
+    this.privateKey = options.privateKey;
+    this.chain = getSourceChain(options.chain);
+    this.endpoint = options.endpoint;
+  }
+
+  claim = async () => {
+    const client = hc<AppType>(this.endpoint);
+    const signature = await signTxHash(
+      this.privateKey as `0x${string}`,
+      this.txHash as `0x${string}`,
+    );
+
+    const res = await client.fill.$post({
+      json: {
+        txHash: this.txHash,
+        nonce: this.nonce,
+        signature,
+        receiver: this.receiverAddress,
+        value: "0.00001",
+      },
+    });
+
+    const data = await res.json();
+    // console.log(res);
+    if (res.ok) {
+      console.log(`Withdraw Tx: ${data.tx}`);
+    } else {
+      console.log(data);
+    }
+  };
+}
+
+export class TEECreateCommand {
   readonly source: string;
   readonly destain: string;
   readonly receiver: `0x${string}`;
@@ -224,7 +276,7 @@ export class TEECreateCommnad {
         nonce,
         source: this.source,
         destin: this.destain,
-        destinAddress: this.destain,
+        destinAddress: this.receiver,
         value: this.value,
       },
     });
@@ -232,6 +284,7 @@ export class TEECreateCommnad {
     if (res.ok) {
       const data = await res.json();
       console.log(`Order Account: ${data.account}`);
+      console.log(`Order Nonce: ${nonce}`);
     }
   };
 }

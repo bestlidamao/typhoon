@@ -5,6 +5,7 @@ import { TappdClient } from "@phala/dstack-sdk";
 import {
   createPublicClient,
   createWalletClient,
+  getAddress,
   http,
   keccak256,
   parseEther,
@@ -38,7 +39,7 @@ const app = new Hono()
         nonce: z.string(),
         source: z.string(),
         destin: z.string(),
-        destinAddress: z.string(),
+        destinAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
         value: z.number(),
       }),
     ),
@@ -110,7 +111,7 @@ const app = new Hono()
           throw new Error("Confirmed Error");
         }
 
-        if (tx.to !== order.destin_address) {
+        if (getAddress(tx.to || "0x") !== getAddress(order.destin_address)) {
           throw new Error("Receiver Address Err");
         }
 
@@ -140,7 +141,7 @@ const app = new Hono()
 
       const walletClient = createWalletClient({
         account,
-        chain: getSourceChain(order.destin),
+        chain: getSourceChain(order.source),
         transport: http(),
       });
 
