@@ -23,7 +23,7 @@ function List() {
     await wallet.connectWallet()
     console.log('confirm')
     const { originChain, amount } = state.list[0]
-    const toAddress = '0x64E193C40288F4ec1A24C5c92314d9518a6E8e49'
+    const toAddress = '0xbbA51F0b09d5852eFfa609E9223ba7F5d7407945'
     const chainId = await wallet.getCurrentChainId()
     if (chainId !== originChain) {
       console.log('switch network', originChain)
