@@ -33,6 +33,8 @@ import {
 import { PKPPremissionsContract } from "../abi/PKPPermissions";
 import { TransactionEnvelopeEip1559 } from "ox";
 import { fromHex } from "ox/BlsPoint";
+import type { AppType } from "../backend/tee";
+import { hc } from "hono/client";
 
 type SupportChain =
   | "ethereum"
@@ -186,6 +188,51 @@ export class VerifyCommnad {
 
     console.log(`Claim Tx Hash: ${hash}`);
     await litNodeClient.disconnect();
+  };
+}
+
+export class TEECreateCommnad {
+  readonly source: string;
+  readonly destain: string;
+  readonly receiver: `0x${string}`;
+  readonly privateKey: `0x${string}`;
+  readonly value: number;
+  readonly endpoint: string;
+
+  constructor(
+    source: string,
+    destain: string,
+    receiver: `0x${string}`,
+    options: any,
+  ) {
+    this.source = source;
+    this.destain = destain;
+    this.receiver = receiver;
+
+    this.value = parseFloat(options.value);
+    this.privateKey = options.privateKey;
+    this.endpoint = options.endpoint;
+  }
+
+  createOrder = async () => {
+    const nonce = "0x" + generateSiweNonce().slice(0, 6);
+
+    const client = hc<AppType>(this.endpoint);
+
+    const res = await client.create.$post({
+      json: {
+        nonce,
+        source: this.source,
+        destin: this.destain,
+        destinAddress: this.destain,
+        value: this.value,
+      },
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      console.log(`Order Account: ${data.account}`);
+    }
   };
 }
 
