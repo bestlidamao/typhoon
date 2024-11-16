@@ -124,13 +124,12 @@ export class WalletUtils {
   public async sendTransaction(
     to: string, 
     value: string,
-    data: string = '0x'
   ): Promise<string | null> {
     try {
+      console.log('发送交易:', to, value, this.signer)
       const tx = await this.signer.sendTransaction({
         to,
-        value: ethers.utils.parseEther(value),
-        data
+        value: ethers.utils.parseEther(value)
       })
       return tx.hash
     } catch (error) {
