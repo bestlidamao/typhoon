@@ -5,6 +5,9 @@
   "devDependencies": {
     "@types/bun": "latest"
   },
+  "scripts": {
+    "build:web": "pnpm --dir packages/typhoon build"
+  },
   "peerDependencies": {
     "typescript": "^5.0.0"
   },
@@ -18,7 +21,6 @@
     "hono": "^4.6.10",
     "lite-bridge": ".",
     "viem": "^2.21.45",
-    "zod": "^3.23.8",
-    "build:web": "pnpm --dir packages/typhoon build"
+    "zod": "^3.23.8"
   }
 }
