@@ -6,7 +6,7 @@
     "@types/bun": "latest"
   },
   "scripts": {
-    "build:web": "pnpm --dir packages/typhoon build"
+    "build:web": "pnpm install && pnpm --dir packages/typhoon build"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
