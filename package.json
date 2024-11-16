@@ -9,11 +9,15 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
+    "@hono/zod-validator": "^0.4.1",
     "@lit-protocol/constants": "^6.11.0",
     "@lit-protocol/lit-node-client": "^6.11.0",
+    "@phala/dstack-sdk": "^0.1.4",
     "bs58": "^6.0.0",
     "commander": "^12.1.0",
+    "hono": "^4.6.10",
     "lite-bridge": ".",
-    "viem": "^2.21.45"
+    "viem": "^2.21.45",
+    "zod": "^3.23.8"
   }
 }
