@@ -30,6 +30,7 @@ function List() {
     if (chainId !== originChain) {
       console.log('switch network', originChain)
       await wallet.switchNetwork(originChain)
+      setShowLoading(false)
       return
     }
     try {
@@ -51,6 +52,7 @@ function List() {
     if (chainId !== originChain) {
       console.log('switch network', originChain)
       await wallet.switchNetwork(originChain)
+      setShowLoading(false)
       return
     }
     try {
