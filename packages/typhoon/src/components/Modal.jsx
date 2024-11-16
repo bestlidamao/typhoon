@@ -6,14 +6,14 @@ import {
   Button
 } from 'react95';
 
-function Modal({ title, content }) {
+function Modal({ title, content, close }) {
   return (
     <div className='modal'>
       <Window>
         <WindowHeader>
           <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
             {title}
-            <Button>
+            <Button onClick={close}>
               <span className='close-icon' />
             </Button>
           </div>

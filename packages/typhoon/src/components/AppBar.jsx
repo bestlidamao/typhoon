@@ -3,7 +3,7 @@ import {
   Toolbar, Button, MenuList, MenuListItem, TextInput, Frame, Select
 } from 'react95';
 import { WalletUtils } from '../utils/walletUtils'
-import Modal from './modal'
+import Modal from './Modal'
 
 const wallet = new WalletUtils()
 
@@ -144,7 +144,7 @@ function Bar() {
         <div style={{ fontSize: '16px', fontWeight: 600 }}>Typhoon</div>
         <Toolbar style={{ justifyContent: 'flex-end', flex: 1 }}>
           <Button
-            onClick={() => setOpen(!open)}
+            onClick={() => setOpen(true)}
             active={open}
             style={{ fontWeight: 'bold' }}
             className='bar-btn'
@@ -174,7 +174,6 @@ function Bar() {
                     right: '0',
                     top: '100%'
                   }}
-                  onClick={() => setOpen(false)}
                 >
                   <MenuListItem onClick={() => disconnect()}>
                     disconnect
@@ -183,7 +182,7 @@ function Bar() {
               </div>
             )
           }
-          { open && <Modal title='create crosschain offer' content={content} open={open} setOpen={setOpen} />}
+          { open && <Modal title='create crosschain offer' content={content} close={() => setOpen(false)} />}
         </div>
       </Toolbar>
     </div>
