@@ -1,7 +1,7 @@
 export const list = [{
-  amount: 1,
+  amount: 0.01,
   asset: 'eth',
-  originChain: '0xa',
+  originChain: '0x1',
   targetChain: '0x2105',
 }, {
   amount: 20,
